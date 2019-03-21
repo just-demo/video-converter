@@ -8,18 +8,17 @@ import net.bramp.ffmpeg.job.FFmpegJob;
 import net.bramp.ffmpeg.probe.FFmpegFormat;
 import net.bramp.ffmpeg.probe.FFmpegProbeResult;
 import net.bramp.ffmpeg.probe.FFmpegStream;
-import org.apache.commons.lang3.time.DurationFormatUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.DecimalFormat;
 
 import static org.apache.commons.io.FilenameUtils.getBaseName;
 import static org.apache.commons.io.FilenameUtils.getExtension;
+import static self.ed.util.FormatUtils.*;
 
-public class Converter {
+public class ConverterCLI {
     public static void main(String[] args) throws IOException {
         String inFile = args[0];
         String outFile = convert(inFile);
@@ -51,7 +50,7 @@ public class Converter {
 
         FFmpegJob job = executor.createJob(builder, progress -> {
             long percentage = 100 * progress.out_time_ns / inDurationNanos;
-            System.out.println("[" + percentage + "%] " + formatNanos(progress.out_time_ns));
+            System.out.println("[" + percentage + "%] " + formatTimeNanos(progress.out_time_ns));
         });
 
         job.run();
@@ -64,22 +63,6 @@ public class Converter {
         FFmpegFormat format = probeResult.getFormat();
         FFmpegStream stream = probeResult.getStreams().get(0);
         long size = new File(file).length();
-        System.out.println(stream.width + "x" + stream.height + " " + formatSeconds(format.duration) + " " + formatFileSize(size));
-    }
-
-    private static String formatFileSize(long bytes) {
-        return new DecimalFormat("#.#").format(bytes / 1024. / 1024.) + "MB";
-    }
-
-    private static String formatSeconds(double seconds) {
-        return formatMillis(seconds * 1000);
-    }
-
-    private static String formatNanos(double nanos) {
-        return formatMillis(nanos / 1000_000);
-    }
-
-    private static String formatMillis(double millis) {
-        return DurationFormatUtils.formatDuration((long) millis, "HH:mm:ss");
+        System.out.println(stream.width + "x" + stream.height + " " + formatTimeSeconds((long) format.duration) + " " + formatFileSize(size));
     }
 }
