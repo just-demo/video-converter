@@ -1,4 +1,4 @@
-package self.ed;
+package self.ed.javafx;
 
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;

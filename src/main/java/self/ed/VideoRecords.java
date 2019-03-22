@@ -7,6 +7,8 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.Stage;
+import self.ed.javafx.CustomFormatCellFactory;
+import self.ed.javafx.MultiPropertyValueFactory;
 import self.ed.util.FormatUtils;
 
 import java.util.List;

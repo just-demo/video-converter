@@ -1,4 +1,4 @@
-package self.ed;
+package self.ed.javafx;
 
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
@@ -24,7 +24,7 @@ public class MultiPropertyValueFactory<S, T> implements Callback<TableColumn.Cel
     @Override
     public ObservableValue<List<T>> call(TableColumn.CellDataFeatures<S, List<T>> param) {
         List<T> values = factories.stream()
-                // TODO: fix type casting, it works only because param.getValue() is the only thing factory.call cares about
+                // It works because param.getValue() is the only thing factory.call uses internally
                 .map(factory -> factory.call((TableColumn.CellDataFeatures<S, T>)param))
                 .map(ObservableValue::getValue)
                 .collect(toList());

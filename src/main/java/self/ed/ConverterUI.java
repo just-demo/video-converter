@@ -33,6 +33,7 @@ public class ConverterUI extends Application {
 
     public void start(Stage stage) {
         // See https://docs.oracle.com/javase/8/javafx/layout-tutorial/builtin_layouts.htm#JFXLY102
+        // https://docs.oracle.com/javase/8/javafx/interoperability-tutorial/concurrency.htm
         stage.setTitle("Bulk Video Converter");
 
         BorderPane layout = new BorderPane();
