@@ -2,10 +2,12 @@ package self.ed;
 
 import javafx.application.Application;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
 import javafx.scene.Scene;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
+import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import self.ed.javafx.CustomFormatCellFactory;
 import self.ed.javafx.MultiPropertyValueFactory;
@@ -14,6 +16,7 @@ import self.ed.util.FormatUtils;
 import java.util.List;
 
 import static javafx.collections.FXCollections.observableArrayList;
+import static self.ed.util.ThreadUtils.randomSleep;
 
 public class VideoRecords extends Application {
     private final ObservableList<VideoRecord> data = observableArrayList(
@@ -54,9 +57,38 @@ public class VideoRecords extends Application {
         TableView<VideoRecord> table = new TableView<>(data);
         table.getColumns().addAll(path, duration, size, resolution);
 
-        Scene scene = new Scene(table);
+        Button startButton = new Button("Start");
+        ProgressIndicator progress = new ProgressIndicator(0);
+        // ProgressBar progress = new ProgressBar(0);
+        startButton.setOnAction(e -> convertAll(progress));
+
+        Scene scene = new Scene(new VBox(10,
+                new HBox(10, startButton, progress),
+                table
+        ));
         stage.setScene(scene);
         stage.show();
+    }
+
+    private void convertAll(ProgressIndicator progress) {
+        System.out.println("Converting...");
+        Task task = new Task<Void>() {
+            @Override
+            public Void call() {
+                int max = 100;
+                for (int i = 1; i <= max; i++) {
+                    if (isCancelled()) {
+                        break;
+                    }
+                    randomSleep();
+                    updateProgress(i, max);
+                }
+                return null;
+            }
+        };
+
+        progress.progressProperty().bind(task.progressProperty());
+        new Thread(task).start();
     }
 
 }

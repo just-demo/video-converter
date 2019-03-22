@@ -8,8 +8,9 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 
-import java.util.Random;
 import java.util.stream.Stream;
+
+import static self.ed.util.ThreadUtils.randomSleep;
 
 public class ProgressIndicators extends Application {
 
@@ -28,7 +29,7 @@ public class ProgressIndicators extends Application {
         for (ProgressIndicator indicator: indicators) {
             new Thread(() -> {
                 for (int i = 1; i <= 100; i++) {
-                    sleep();
+                    randomSleep();
                     double progress = 0.01 * i;
                     Platform.runLater(() -> indicator.setProgress(progress));
                 }
@@ -37,13 +38,5 @@ public class ProgressIndicators extends Application {
 
         stage.show();
 
-    }
-
-    private void sleep() {
-        try {
-            Thread.sleep(new Random().nextInt(100));
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
     }
 }
