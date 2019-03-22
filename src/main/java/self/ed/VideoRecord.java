@@ -1,8 +1,10 @@
 package self.ed;
 
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.concurrent.Task;
 
 public class VideoRecord {
     private SimpleStringProperty path;
@@ -10,6 +12,8 @@ public class VideoRecord {
     private SimpleLongProperty size;
     private SimpleIntegerProperty width;
     private SimpleIntegerProperty height;
+    private SimpleDoubleProperty progress;
+    private Task task;
 
     public VideoRecord(String path, long duration, long size, int width, int height) {
         this.path = new SimpleStringProperty(path);
@@ -17,6 +21,7 @@ public class VideoRecord {
         this.size = new SimpleLongProperty(size);
         this.width = new SimpleIntegerProperty(width);
         this.height = new SimpleIntegerProperty(height);
+        this.progress = new SimpleDoubleProperty(0);
     }
 
     public String getPath() {
@@ -57,5 +62,25 @@ public class VideoRecord {
 
     public void setHeight(int height) {
         this.height.set(height);
+    }
+
+    public double getProgress() {
+        return progress.get();
+    }
+
+    public SimpleDoubleProperty progressProperty() {
+        return progress;
+    }
+
+    public void setProgress(double progress) {
+        this.progress.set(progress);
+    }
+
+    public Task getTask() {
+        return task;
+    }
+
+    public void setTask(Task task) {
+        this.task = task;
     }
 }
