@@ -5,24 +5,26 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.concurrent.Task;
+import net.bramp.ffmpeg.FFprobe;
+import net.bramp.ffmpeg.probe.FFmpegFormat;
+import net.bramp.ffmpeg.probe.FFmpegProbeResult;
+import net.bramp.ffmpeg.probe.FFmpegStream;
+import org.apache.commons.io.FilenameUtils;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Path;
 
 public class VideoRecord {
-    private SimpleStringProperty path;
-    private SimpleLongProperty duration;
-    private SimpleLongProperty size;
-    private SimpleIntegerProperty width;
-    private SimpleIntegerProperty height;
-    private SimpleDoubleProperty progress;
+    private SimpleStringProperty path = new SimpleStringProperty();
+    private SimpleLongProperty duration = new SimpleLongProperty();
+    private SimpleLongProperty size = new SimpleLongProperty();
+    private SimpleIntegerProperty width = new SimpleIntegerProperty();
+    private SimpleIntegerProperty height = new SimpleIntegerProperty();
+    private SimpleDoubleProperty progress = new SimpleDoubleProperty(0);
+    private File file;
     private Task task;
-
-    public VideoRecord(String path, long duration, long size, int width, int height) {
-        this.path = new SimpleStringProperty(path);
-        this.duration = new SimpleLongProperty(duration);
-        this.size = new SimpleLongProperty(size);
-        this.width = new SimpleIntegerProperty(width);
-        this.height = new SimpleIntegerProperty(height);
-        this.progress = new SimpleDoubleProperty(0);
-    }
 
     public String getPath() {
         return path.get();
@@ -82,5 +84,34 @@ public class VideoRecord {
 
     public void setTask(Task task) {
         this.task = task;
+    }
+
+    public File getFile() {
+        return file;
+    }
+
+    public void setFile(File file) {
+        this.file = file;
+    }
+
+    public static VideoRecord newInstance(File dir, String path) {
+        try {
+            File file = dir.toPath().resolve(path).toFile();
+            FFprobe ffprobe = new FFprobe();
+            FFmpegProbeResult probeResult = ffprobe.probe(file.getAbsolutePath());
+            FFmpegFormat format = probeResult.getFormat();
+            FFmpegStream stream = probeResult.getStreams().get(0);
+
+            VideoRecord record = new VideoRecord();
+            record.setPath(path);
+            record.setDuration((long) format.duration);
+            record.setSize(file.length());
+            record.setWidth(stream.width);
+            record.setHeight(stream.height);
+            record.setFile(file);
+            return record;
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 }

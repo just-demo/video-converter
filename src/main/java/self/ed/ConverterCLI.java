@@ -20,7 +20,7 @@ import static self.ed.util.FormatUtils.*;
 
 public class ConverterCLI {
     public static void main(String[] args) throws IOException {
-        String inFile = args[0];
+        String inFile = "/home/pc/Desktop/=test-data=/dummy23/V90323-110350.mp4";
         String outFile = convert(inFile);
         System.out.println(inFile);
         print(inFile);
