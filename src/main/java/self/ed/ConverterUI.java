@@ -18,7 +18,6 @@ import self.ed.javafx.MultiPropertyValueFactory;
 import self.ed.util.FormatUtils;
 
 import java.io.File;
-import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
@@ -28,18 +27,18 @@ import java.util.concurrent.Executors;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toCollection;
 import static javafx.collections.FXCollections.observableArrayList;
+import static self.ed.util.FileUtils.buildOutDir;
 import static self.ed.util.FileUtils.listFiles;
-import static self.ed.util.ThreadUtils.randomSleep;
 
 public class ConverterUI extends Application {
 
     private final ObservableList<VideoRecord> files = observableArrayList();
+    private File inDir;
+    private File outDir;
 
     private Label info = new Label();
 
     public static void main(String[] args) {
-//        File dir = new File("/home/pc/Desktop/=test-data=/dummy23/");
-//        System.out.println(listFiles(dir));
         launch(args);
     }
 
@@ -64,14 +63,19 @@ public class ConverterUI extends Application {
 
         Button sourceButton = buildButton("Input...");
         sourceButton.setOnAction(e -> ofNullable(directoryChooser.showDialog(stage)).ifPresent(file -> {
-            sourcePath.setText(file.getAbsolutePath());
-            targetPath.setText(buildTargetPath(file).getAbsolutePath());
-            loadFiles(file);
+            inDir = file;
+            outDir = buildOutDir(inDir);
+            // TODO: try to bind in/out path properties to corresponding files
+            sourcePath.setText(inDir.getAbsolutePath());
+            targetPath.setText(outDir.getAbsolutePath());
+            loadFiles();
         }));
 
         Button targetButton = buildButton("Output...");
         targetButton.setOnAction(e -> ofNullable(directoryChooser.showDialog(stage)).ifPresent(file -> {
-            targetPath.setText(file.getAbsolutePath());
+            outDir = file;
+            targetPath.setText(outDir.getAbsolutePath());
+            loadFiles();
         }));
 
         Button startButton = new Button("Start");
@@ -80,12 +84,13 @@ public class ConverterUI extends Application {
         Button stopButton = new Button("Stop");
         stopButton.setOnAction(e -> stopAll());
 
-        File file = new File("/home/pc/Desktop/=test-data=/dummy23/");
-        sourcePath.setText(file.getAbsolutePath());
-        targetPath.setText(buildTargetPath(file).getAbsolutePath());
-        loadFiles(file);
+        inDir = new File("/dummy");
+        outDir = buildOutDir(inDir);
+        sourcePath.setText(inDir.getAbsolutePath());
+        targetPath.setText(outDir.getAbsolutePath());
+        loadFiles();
 
-        return new VBox( 5,
+        return new VBox(5,
                 new HBox(10, sourceButton, sourcePath),
                 new HBox(10, targetButton, targetPath),
                 new HBox(10, startButton, stopButton, info)
@@ -122,22 +127,17 @@ public class ConverterUI extends Application {
         return table;
     }
 
-    private File buildTargetPath(File file) {
-        String time = new SimpleDateFormat("YYYYMMDD-HHmmss").format(new Date());
-        return file.toPath().getParent().resolve(file.getName() + "_compressed" + "_" + time).toFile();
-    }
-
     private Button buildButton(String text) {
         Button button = new Button(text);
         button.setMinWidth(80);
         return button;
     }
 
-    private void loadFiles(File dir) {
+    private void loadFiles() {
         info("Collecting files...");
         files.clear();
-        listFiles(dir).stream()
-                .map(path -> VideoRecord.newInstance(dir, path))
+        listFiles(inDir).stream()
+                .map(path -> VideoRecord.newInstance(inDir, path, outDir))
                 .collect(toCollection(() -> files));
     }
 
@@ -163,18 +163,25 @@ public class ConverterUI extends Application {
             {
                 resetProgress();
             }
+
             @Override
             public Void call() {
-                int max = 50;
-                for (int i = 1; i <= max; i++) {
-                    if (isCancelled()) {
-                        resetProgress();
-                        System.out.println("Breaking...");
-                        break;
-                    }
-                    randomSleep();
-                    updateProgress(i, max);
-                }
+                System.out.println("Converting: " + record.getInFile().getAbsolutePath() + " -> " + record.getOutFile().getAbsolutePath());
+                Converter.convert(
+                        record.getInFile().getAbsolutePath(),
+                        record.getOutFile().getAbsolutePath(),
+                        this::updateProgress
+                );
+//                int max = 50;
+//                for (int i = 1; i <= max; i++) {
+//                    if (isCancelled()) {
+//                        resetProgress();
+//                        System.out.println("Breaking...");
+//                        break;
+//                    }
+//                    randomSleep();
+//                    updateProgress(i, max);
+//                }
                 return null;
             }
 

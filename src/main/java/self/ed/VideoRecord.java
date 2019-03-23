@@ -16,6 +16,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 
+import static self.ed.util.FileUtils.buildOutFile;
+
 public class VideoRecord {
     private SimpleStringProperty path = new SimpleStringProperty();
     private SimpleLongProperty duration = new SimpleLongProperty();
@@ -23,7 +25,8 @@ public class VideoRecord {
     private SimpleIntegerProperty width = new SimpleIntegerProperty();
     private SimpleIntegerProperty height = new SimpleIntegerProperty();
     private SimpleDoubleProperty progress = new SimpleDoubleProperty(0);
-    private File file;
+    private File inFile;
+    private File outFile;
     private Task task;
 
     public String getPath() {
@@ -86,29 +89,39 @@ public class VideoRecord {
         this.task = task;
     }
 
-    public File getFile() {
-        return file;
+    public File getInFile() {
+        return inFile;
     }
 
-    public void setFile(File file) {
-        this.file = file;
+    public void setInFile(File inFile) {
+        this.inFile = inFile;
     }
 
-    public static VideoRecord newInstance(File dir, String path) {
+    public File getOutFile() {
+        return outFile;
+    }
+
+    public void setOutFile(File outFile) {
+        this.outFile = outFile;
+    }
+
+    public static VideoRecord newInstance(File inDir, String path, File outDir) {
         try {
-            File file = dir.toPath().resolve(path).toFile();
+            File inFile = inDir.toPath().resolve(path).toFile();
+            File outFile = buildOutFile(outDir, path);
             FFprobe ffprobe = new FFprobe();
-            FFmpegProbeResult probeResult = ffprobe.probe(file.getAbsolutePath());
+            FFmpegProbeResult probeResult = ffprobe.probe(inFile.getAbsolutePath());
             FFmpegFormat format = probeResult.getFormat();
             FFmpegStream stream = probeResult.getStreams().get(0);
 
             VideoRecord record = new VideoRecord();
             record.setPath(path);
             record.setDuration((long) format.duration);
-            record.setSize(file.length());
+            record.setSize(inFile.length());
             record.setWidth(stream.width);
             record.setHeight(stream.height);
-            record.setFile(file);
+            record.setInFile(inFile);
+            record.setOutFile(outFile);
             return record;
         } catch (IOException e) {
             throw new UncheckedIOException(e);
