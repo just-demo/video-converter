@@ -1,10 +1,6 @@
 package self.ed;
 
-import net.bramp.ffmpeg.FFmpeg;
-import net.bramp.ffmpeg.FFmpegExecutor;
 import net.bramp.ffmpeg.FFprobe;
-import net.bramp.ffmpeg.builder.FFmpegBuilder;
-import net.bramp.ffmpeg.job.FFmpegJob;
 import net.bramp.ffmpeg.probe.FFmpegFormat;
 import net.bramp.ffmpeg.probe.FFmpegProbeResult;
 import net.bramp.ffmpeg.probe.FFmpegStream;
@@ -15,7 +11,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import static self.ed.util.FileUtils.buildOutFile;
-import static self.ed.util.FormatUtils.*;
+import static self.ed.util.FormatUtils.formatFileSize;
+import static self.ed.util.FormatUtils.formatTimeSeconds;
 
 public class ConverterCLI {
     public static void main(String[] args) throws IOException {
@@ -27,7 +24,7 @@ public class ConverterCLI {
         print(outFile);
     }
 
-    private static String convert(String inFile) throws IOException {
+    private static String convert(String inFile) {
         Path outDir = Paths.get(inFile).getParent();
         String outFile = buildOutFile(outDir.toFile(), inFile).getAbsolutePath();
         Converter.convert(inFile, outFile, (current, total) -> {

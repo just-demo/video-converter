@@ -27,6 +27,7 @@ import java.util.concurrent.Executors;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toCollection;
 import static javafx.collections.FXCollections.observableArrayList;
+import static self.ed.javafx.CustomFormatCellFactory.alignRight;
 import static self.ed.util.FileUtils.buildOutDir;
 import static self.ed.util.FileUtils.listFiles;
 
@@ -99,7 +100,7 @@ public class ConverterUI extends Application {
 
     private TableView buildRecordTable() {
         TableColumn<VideoRecord, String> path = new TableColumn<>("Path");
-        path.setMinWidth(500);
+        path.setMinWidth(300);
         path.setCellValueFactory(new PropertyValueFactory<>("path"));
 
         TableColumn<VideoRecord, Long> duration = new TableColumn<>("Duration");
@@ -110,7 +111,7 @@ public class ConverterUI extends Application {
         TableColumn<VideoRecord, Long> size = new TableColumn<>("Size");
         size.setMinWidth(100);
         size.setCellValueFactory(new PropertyValueFactory<>("size"));
-        size.setCellFactory((CustomFormatCellFactory<VideoRecord, Long>) FormatUtils::formatFileSize);
+        size.setCellFactory(alignRight((CustomFormatCellFactory<VideoRecord, Long>) FormatUtils::formatFileSize));
 
         TableColumn<VideoRecord, List<Long>> resolution = new TableColumn<>("Resolution");
         resolution.setMinWidth(100);

@@ -11,8 +11,6 @@ import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.toList;
 import static org.apache.commons.io.FilenameUtils.getBaseName;
 import static org.apache.commons.io.FilenameUtils.getExtension;
-import static self.ed.util.Constants.TARGET_HEIGHT;
-import static self.ed.util.Constants.TARGET_WIDTH;
 
 public class FileUtils {
     public static List<String> listFiles(File dir) {
@@ -26,7 +24,7 @@ public class FileUtils {
 
     public static File buildOutDir(File inDir) {
         String time = new SimpleDateFormat("YYYYMMDD-HHmmss").format(new Date());
-        return inDir.toPath().getParent().resolve(inDir.getName() + "_compressed" + "_" + time).toFile();
+        return inDir.toPath().getParent().resolve(inDir.getName() + "_compressed_" + time).toFile();
     }
 
     public static File buildOutFile(File outDir, String inPath) {
@@ -35,8 +33,7 @@ public class FileUtils {
     }
 
     private static String buildOutFileName(String inFileName) {
-        String outSuffix = "_" + TARGET_WIDTH + "x" + TARGET_HEIGHT;
-        return getBaseName(inFileName) + outSuffix + "." + getExtension(inFileName);
+        return getBaseName(inFileName) + "_compressed." + getExtension(inFileName);
     }
 
     private static Stream<File> streamFiles(File dir) {

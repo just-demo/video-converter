@@ -8,7 +8,7 @@ import static org.apache.commons.lang3.time.DurationFormatUtils.formatDuration;
 
 public class FormatUtils {
     public static String formatFileSize(long bytes) {
-        return new DecimalFormat("#.#").format(bytes / 1024. / 1024.) + "MB";
+        return new DecimalFormat("0.0").format(bytes / 1024. / 1024.) + "MB";
     }
 
     public static String formatTimeSeconds(long seconds) {
