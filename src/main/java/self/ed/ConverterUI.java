@@ -41,7 +41,7 @@ import static self.ed.util.FormatUtils.formatFileSize;
 
 public class ConverterUI extends Application {
     private final ObservableList<VideoRecord> files = observableArrayList();
-    private final List<ConvertTask> tasks = new ArrayList<>();
+    private final List<ConverterTask> tasks = new ArrayList<>();
     private final SimpleObjectProperty<File> sourceDir = new SimpleObjectProperty<>();
     private final SimpleObjectProperty<File> targetDir = new SimpleObjectProperty<>();
     private final Button sourceButton = buildButton("Input...");
@@ -58,8 +58,6 @@ public class ConverterUI extends Application {
 
     @Override
     public void start(Stage stage) {
-        // https://docs.oracle.com/javase/8/javafx/layout-tutorial/builtin_layouts.htm#JFXLY102
-        // https://docs.oracle.com/javase/8/javafx/interoperability-tutorial/concurrency.htm
         stage.setTitle("Bulk Video Converter");
 
         BorderPane layout = new BorderPane();
@@ -68,9 +66,6 @@ public class ConverterUI extends Application {
 
         stage.setScene(new Scene(layout, 1000, 500));
         stage.show();
-
-        // TODO: revert
-        sourceDir.set(new File("/home/pc/Desktop/=test-data=/new/"));
     }
 
     @Override
@@ -86,6 +81,7 @@ public class ConverterUI extends Application {
         sourceDir.addListener((ChangeListener<? super File>) (observable, oldValue, newValue) -> {
             sourceLabel.setText(newValue.getAbsolutePath());
             targetDir.set(buildTargetDir(newValue));
+            enable(targetButton);
         });
         targetDir.addListener((ChangeListener<? super File>) (observable, oldValue, newValue) -> {
             targetLabel.setText(newValue.getAbsolutePath());
@@ -109,7 +105,7 @@ public class ConverterUI extends Application {
                         new HBox(10, startButton, stopButton, info))
         );
         control.setRight(new VBox(5, progressIndicator, refreshButton));
-        enable(sourceButton, targetButton, startButton);
+        enable(sourceButton);
         return control;
     }
 
@@ -185,15 +181,19 @@ public class ConverterUI extends Application {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         files.stream()
                 .filter(file -> file.getProgress() != PROGRESS_DONE)
-                .map(file -> new ConvertTask(file, this::updateConvertProgress))
+                .map(file -> new ConverterTask(file, this::updateConvertProgress))
                 .peek(executor::execute)
                 .collect(toCollection(() -> tasks));
         updateConvertProgress();
     }
 
     private void updateConvertProgress() {
-        long done = files.stream().filter(file -> file.getProgress() == PROGRESS_DONE).count();
-        long total = files.size();
+        long done = files.stream().filter(file -> file.getProgress() == PROGRESS_DONE)
+                .mapToLong(VideoRecord::getSourceSize)
+                .sum();
+        long total = files.stream()
+                .mapToLong(VideoRecord::getSourceSize)
+                .sum();
         progressIndicator.setProgress((double) done / total);
         if (done == total) {
             info(EMPTY);
