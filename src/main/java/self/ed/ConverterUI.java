@@ -1,6 +1,8 @@
 package self.ed;
 
 import javafx.application.Application;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -34,13 +36,11 @@ import static self.ed.util.FileUtils.listFiles;
 import static self.ed.util.FormatUtils.formatFileSize;
 
 public class ConverterUI extends Application {
-
     private final ObservableList<VideoRecord> files = observableArrayList();
     private final List<ConvertTask> tasks = new ArrayList<>();
-    private File sourceDir;
-    private File targetDir;
-
-    private Label info = new Label();
+    private final SimpleObjectProperty<File> sourceDir = new SimpleObjectProperty<>();
+    private final SimpleObjectProperty<File> targetDir = new SimpleObjectProperty<>();
+    private final Label info = new Label();
 
     public static void main(String[] args) {
         launch(args);
@@ -58,6 +58,9 @@ public class ConverterUI extends Application {
 
         stage.setScene(new Scene(layout, 1000, 500));
         stage.show();
+
+        // TODO: revert
+        sourceDir.set(new File("/dummy"));
     }
 
     @Override
@@ -70,37 +73,28 @@ public class ConverterUI extends Application {
     private Pane buildInputPane(Stage stage) {
         Label sourcePath = new Label();
         Label targetPath = new Label();
+        sourceDir.addListener((ChangeListener<? super File>) (observable, oldValue, newValue) -> {
+            sourcePath.setText(newValue.getAbsolutePath());
+            targetDir.set(buildTargetDir(newValue));
+        });
+        targetDir.addListener((ChangeListener<? super File>) (observable, oldValue, newValue) -> {
+            targetPath.setText(newValue.getAbsolutePath());
+            loadFiles();
+        });
 
         DirectoryChooser directoryChooser = new DirectoryChooser();
 
         Button sourceButton = buildButton("Input...");
-        sourceButton.setOnAction(e -> ofNullable(directoryChooser.showDialog(stage)).ifPresent(file -> {
-            sourceDir = file;
-            targetDir = buildTargetDir(sourceDir);
-            // TODO: try to bind source/target path properties to corresponding files
-            sourcePath.setText(sourceDir.getAbsolutePath());
-            targetPath.setText(targetDir.getAbsolutePath());
-            loadFiles();
-        }));
+        sourceButton.setOnAction(e -> ofNullable(directoryChooser.showDialog(stage)).ifPresent(sourceDir::set));
 
         Button targetButton = buildButton("Output...");
-        targetButton.setOnAction(e -> ofNullable(directoryChooser.showDialog(stage)).ifPresent(file -> {
-            targetDir = file;
-            targetPath.setText(targetDir.getAbsolutePath());
-            loadFiles();
-        }));
+        targetButton.setOnAction(e -> ofNullable(directoryChooser.showDialog(stage)).ifPresent(targetDir::set));
 
         Button startButton = new Button("Start");
         startButton.setOnAction(e -> startAll());
 
         Button stopButton = new Button("Stop");
         stopButton.setOnAction(e -> stopAll());
-
-        sourceDir = new File("/dummy");
-        targetDir = buildTargetDir(sourceDir);
-        sourcePath.setText(sourceDir.getAbsolutePath());
-        targetPath.setText(targetDir.getAbsolutePath());
-        loadFiles();
 
         return new VBox(5,
                 new HBox(10, sourceButton, sourcePath),
@@ -153,8 +147,8 @@ public class ConverterUI extends Application {
     private void loadFiles() {
         info("Collecting files...");
         files.clear();
-        listFiles(sourceDir).stream()
-                .map(path -> VideoRecord.newInstance(sourceDir, path, targetDir))
+        listFiles(sourceDir.get()).stream()
+                .map(path -> VideoRecord.newInstance(sourceDir.get(), path, targetDir.get()))
                 .collect(toCollection(() -> files));
     }
 
