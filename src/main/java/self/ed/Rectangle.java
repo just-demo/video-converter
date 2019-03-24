@@ -25,10 +25,20 @@ public class Rectangle {
         this.height = height;
     }
 
-    public void scaleToHeight(int height) {
-        // must be divisible by 2, otherwise ffmpeg throws an error
-        this.width = 2 * ((height * this.width / this.height) / 2);
-        this.height = height;
+    public void scaleTo(int lessSize) {
+        // Each side must be divisible by 2, otherwise ffmpeg throws an error
+        lessSize = toEven(lessSize);
+        if (width > height) {
+            this.width = toEven(lessSize * width / height);
+            this.height = lessSize;
+        } else {
+            this.height = toEven(lessSize * height / width);
+            this.width = lessSize;
+        }
+    }
+
+    private int toEven(int value) {
+        return 2 * (value / 2);
     }
 
     @SuppressWarnings("all")

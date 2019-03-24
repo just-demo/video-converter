@@ -21,7 +21,7 @@ import static java.nio.file.Files.createDirectories;
 import static java.util.Optional.ofNullable;
 import static net.bramp.ffmpeg.probe.FFmpegStream.CodecType.AUDIO;
 import static net.bramp.ffmpeg.probe.FFmpegStream.CodecType.VIDEO;
-import static self.ed.util.Constants.TARGET_HEIGHT;
+import static self.ed.util.Constants.TARGET_RESOLUTION;
 
 public class Converter {
     public static void convert(String sourceFile, String targetFile, BiConsumer<Long, Long> progressListener) {
@@ -39,7 +39,7 @@ public class Converter {
                 targetResolution.setWidth(sourceVideo.width);
                 targetResolution.setHeight(sourceVideo.height);
             }
-            targetResolution.scaleToHeight(TARGET_HEIGHT);
+            targetResolution.scaleTo(TARGET_RESOLUTION);
             ofNullable(sourceVideo.tags.get("rotate"))
                     .map(Long::valueOf)
                     .filter(rotate -> rotate % 180 != 0)
