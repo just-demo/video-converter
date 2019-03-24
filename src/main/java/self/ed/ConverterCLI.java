@@ -1,21 +1,15 @@
 package self.ed;
 
-import net.bramp.ffmpeg.FFprobe;
-import net.bramp.ffmpeg.probe.FFmpegFormat;
-import net.bramp.ffmpeg.probe.FFmpegProbeResult;
-import net.bramp.ffmpeg.probe.FFmpegStream;
-
-import java.io.File;
-import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import static self.ed.Converter.getFileInfo;
 import static self.ed.util.FileUtils.buildTargetFile;
 import static self.ed.util.FormatUtils.formatFileSize;
 import static self.ed.util.FormatUtils.formatTimeSeconds;
 
 public class ConverterCLI {
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) {
         String inFile = args[0];
         String outFile = convert(inFile);
         System.out.println(inFile);
@@ -34,12 +28,8 @@ public class ConverterCLI {
         return outFile;
     }
 
-    private static void print(String file) throws IOException {
-        FFprobe ffprobe = new FFprobe();
-        FFmpegProbeResult probeResult = ffprobe.probe(file);
-        FFmpegFormat format = probeResult.getFormat();
-        FFmpegStream stream = probeResult.getStreams().get(0);
-        long size = new File(file).length();
-        System.out.println(stream.width + "x" + stream.height + " " + formatTimeSeconds((long) format.duration) + " " + formatFileSize(size));
+    private static void print(String file) {
+        FileInfo fileInfo = getFileInfo(file);
+        System.out.println(fileInfo.getWidth() + "x" + fileInfo.getHeight() + " " + formatTimeSeconds(fileInfo.getDuration()) + " " + formatFileSize(fileInfo.getSize()));
     }
 }

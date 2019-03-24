@@ -26,7 +26,8 @@ public class Rectangle {
     }
 
     public void scaleToHeight(int height) {
-        this.width = height * this.width / this.height;
+        // must be divisible by 2, otherwise ffmpeg throws an error
+        this.width = 2 * ((height * this.width / this.height) / 2);
         this.height = height;
     }
 

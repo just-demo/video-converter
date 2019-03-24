@@ -17,6 +17,7 @@ public class FileUtils {
                 .map(File::toPath)
                 .map(dirPath::relativize)
                 .map(Path::toString)
+                .sorted()
                 .collect(toList());
     }
 

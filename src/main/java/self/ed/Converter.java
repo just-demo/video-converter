@@ -8,6 +8,7 @@ import net.bramp.ffmpeg.job.FFmpegJob;
 import net.bramp.ffmpeg.probe.FFmpegFormat;
 import net.bramp.ffmpeg.probe.FFmpegProbeResult;
 import net.bramp.ffmpeg.probe.FFmpegStream;
+import net.bramp.ffmpeg.probe.FFmpegStream.CodecType;
 
 import java.io.File;
 import java.io.IOException;
@@ -18,6 +19,8 @@ import java.util.function.BiConsumer;
 import static java.lang.Integer.parseInt;
 import static java.nio.file.Files.createDirectories;
 import static java.util.Optional.ofNullable;
+import static net.bramp.ffmpeg.probe.FFmpegStream.CodecType.AUDIO;
+import static net.bramp.ffmpeg.probe.FFmpegStream.CodecType.VIDEO;
 import static self.ed.util.Constants.TARGET_HEIGHT;
 
 public class Converter {
@@ -28,26 +31,32 @@ public class Converter {
             FFprobe ffprobe = new FFprobe();
 
             FFmpegProbeResult sourceInfo = ffprobe.probe(sourceFile);
-            FFmpegStream inStream = sourceInfo.getStreams().get(0);
-            long inDuration = (long) (1000 * ffprobe.probe(sourceFile).getFormat().duration);
-            Rectangle outResolution = parseRatio(inStream.display_aspect_ratio);
-            outResolution.scaleToHeight(TARGET_HEIGHT);
-            ofNullable(inStream.tags.get("rotate"))
+            FFmpegStream sourceVideo = getStream(sourceInfo, VIDEO);
+            FFmpegStream sourceAudio = getStream(sourceInfo, AUDIO);
+            long sourceDuration = (long) (1000 * ffprobe.probe(sourceFile).getFormat().duration);
+            Rectangle targetResolution = parseRatio(sourceVideo.display_aspect_ratio);
+            if (targetResolution.getWidth() == 0 || targetResolution.getHeight() == 0) {
+                targetResolution.setWidth(sourceVideo.width);
+                targetResolution.setHeight(sourceVideo.height);
+            }
+            targetResolution.scaleToHeight(TARGET_HEIGHT);
+            ofNullable(sourceVideo.tags.get("rotate"))
                     .map(Long::valueOf)
                     .filter(rotate -> rotate % 180 != 0)
-                    .ifPresent(ignored -> outResolution.rotate());
+                    .ifPresent(ignored -> targetResolution.rotate());
 
             FFmpegBuilder builder = new FFmpegBuilder()
                     .setInput(sourceFile)
                     .overrideOutputFiles(true)
                     .addOutput(targetFile)
-                    .setVideoResolution(outResolution.getWidth(), outResolution.getHeight())
-                    .setAudioCodec("copy")
+                    .setVideoResolution(targetResolution.getWidth(), targetResolution.getHeight())
+                    // ffmpeg had problem copying audio of amr_nb type
+                    .setAudioCodec("amr_nb".equals(sourceAudio.codec_name) ? "aac" : "copy")
                     .done();
 
             FFmpegExecutor executor = new FFmpegExecutor(ffmpeg, ffprobe);
             FFmpegJob job = executor.createJob(builder, progress ->
-                    progressListener.accept(progress.out_time_ns / 1000_000, inDuration));
+                    progressListener.accept(progress.out_time_ns / 1000_000, sourceDuration));
 
             job.run();
         } catch (IOException e) {
@@ -60,11 +69,11 @@ public class Converter {
             FFprobe ffprobe = new FFprobe();
             FFmpegProbeResult info = ffprobe.probe(file);
             FFmpegFormat format = info.getFormat();
-            FFmpegStream stream = info.getStreams().get(0);
+            FFmpegStream video = getStream(info, VIDEO);
             return new FileInfo(
                     (long) format.duration,
-                    stream.width,
-                    stream.height,
+                    video.width,
+                    video.height,
                     new File(file).length()
             );
         } catch (IOException e) {
@@ -72,10 +81,37 @@ public class Converter {
         }
     }
 
+    private static FFmpegStream getStream(FFmpegProbeResult info, CodecType type) {
+        // Normally video stream goes first, but not always.
+        // Also sometimes there are multiple video steams and the first one seems to be the desired one.
+        return info.getStreams().stream()
+                .filter(stream -> type.equals(stream.codec_type))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Cannot retrieve " + type + " stream"));
+    }
+
     private static Rectangle parseRatio(String ratio) {
         String[] parts = ratio.split(":");
         return new Rectangle(parseInt(parts[0]), parseInt(parts[1]));
     }
+
+//    public static void main(String[] args) throws Exception {
+//        File dir = new File("");
+//        List<String> sourceFiles = listFiles(dir);
+//        System.out.println(sourceFiles.size());
+//
+//        Map<String, Long> codecs = new HashMap<>();
+//        FFprobe ffprobe = new FFprobe();
+//        AtomicLong counter = new AtomicLong();
+//        for (String file : sourceFiles) {
+//            System.out.println(counter.incrementAndGet());
+//            String sourceFile = dir.toPath().resolve(file).toFile().getAbsolutePath();
+//            FFmpegProbeResult result = ffprobe.probe(sourceFile);
+//            String codec = getStream(result, AUDIO).codec_name;
+//            codecs.put(codec, ofNullable(codecs.get(codec)).orElse(0L) + 1);
+//        }
+//        System.out.println(JsonUtils.toJson(codecs));
+//    }
 
 //    public static void main(String[] args) throws IOException {
 //        File inDir = new File("");
