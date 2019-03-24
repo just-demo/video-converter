@@ -16,7 +16,6 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
-import self.ed.javafx.CustomFormatCellFactory;
 import self.ed.javafx.MultiPropertyValueFactory;
 import self.ed.util.FormatUtils;
 
@@ -31,12 +30,15 @@ import static java.util.Arrays.asList;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toCollection;
 import static javafx.collections.FXCollections.observableArrayList;
+import static javafx.scene.paint.Color.GREEN;
+import static javafx.scene.paint.Color.RED;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static self.ed.VideoRecord.PROGRESS_DONE;
 import static self.ed.VideoRecord.PROGRESS_ZERO;
-import static self.ed.javafx.CustomFormatCellFactory.alignRight;
+import static self.ed.javafx.CustomFormatCellFactory.*;
 import static self.ed.util.FileUtils.buildTargetDir;
 import static self.ed.util.FileUtils.listFiles;
+import static self.ed.util.FormatUtils.formatCompressionRatio;
 import static self.ed.util.FormatUtils.formatFileSize;
 
 public class ConverterUI extends Application {
@@ -117,17 +119,17 @@ public class ConverterUI extends Application {
         TableColumn<VideoRecord, Long> duration = new TableColumn<>("Duration");
         duration.setMinWidth(100);
         duration.setCellValueFactory(new PropertyValueFactory<>("duration"));
-        duration.setCellFactory((CustomFormatCellFactory<VideoRecord, Long>) FormatUtils::formatTimeSeconds);
+        duration.setCellFactory(format(FormatUtils::formatTimeSeconds));
 
         TableColumn<VideoRecord, List<Long>> sourceResolution = new TableColumn<>("Resolution");
         sourceResolution.setMinWidth(100);
         sourceResolution.setCellValueFactory(new MultiPropertyValueFactory<>("sourceWidth", "sourceHeight"));
-        sourceResolution.setCellFactory((CustomFormatCellFactory<VideoRecord, List<Long>>) FormatUtils::formatDimensions);
+        sourceResolution.setCellFactory(format(FormatUtils::formatDimensions));
 
         TableColumn<VideoRecord, Long> sourceSize = new TableColumn<>("Size");
         sourceSize.setMinWidth(100);
         sourceSize.setCellValueFactory(new PropertyValueFactory<>("sourceSize"));
-        sourceSize.setCellFactory(alignRight((CustomFormatCellFactory<VideoRecord, Long>) FormatUtils::formatFileSize));
+        sourceSize.setCellFactory(alignRight(format(FormatUtils::formatFileSize)));
 
         TableColumn<VideoRecord, Double> progress = new TableColumn<>("Progress");
         progress.setMinWidth(100);
@@ -137,10 +139,19 @@ public class ConverterUI extends Application {
         TableColumn<VideoRecord, Long> targetSize = new TableColumn<>("Size");
         targetSize.setMinWidth(100);
         targetSize.setCellValueFactory(new PropertyValueFactory<>("targetSize"));
-        targetSize.setCellFactory(alignRight((CustomFormatCellFactory<VideoRecord, Long>) size -> size == 0 ? "" : formatFileSize(size)));
+        targetSize.setCellFactory(alignRight(format(size -> size == 0 ? "" : formatFileSize(size))));
+
+        TableColumn<VideoRecord, Double> compression = new TableColumn<>("Ratio");
+        compression.setMinWidth(100);
+        compression.setCellValueFactory(new PropertyValueFactory<>("compression"));
+        compression.setCellFactory(alignRight(decorate(
+                format(ratio -> ratio == 0 ? "" : formatCompressionRatio(ratio)),
+                // TODO: fix setting color
+                cell -> ofNullable(cell.getItem()).ifPresent(ratio -> cell.setTextFill(ratio < 1 ? GREEN : RED))))
+        );
 
         TableView<VideoRecord> table = new TableView<>(files);
-        table.getColumns().addAll(path, duration, sourceResolution, sourceSize, progress, targetSize);
+        table.getColumns().addAll(path, duration, sourceResolution, sourceSize, progress, targetSize, compression);
         return table;
     }
 

@@ -5,6 +5,7 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
+import self.ed.util.MathUtils;
 
 import java.io.File;
 
@@ -22,9 +23,21 @@ public class VideoRecord {
     private SimpleIntegerProperty targetWidth = new SimpleIntegerProperty();
     private SimpleIntegerProperty targetHeight = new SimpleIntegerProperty();
     private SimpleLongProperty targetSize = new SimpleLongProperty();
+    private SimpleDoubleProperty compression = new SimpleDoubleProperty();
     private SimpleDoubleProperty progress = new SimpleDoubleProperty(PROGRESS_ZERO);
     private File sourceFile;
     private File targetFile;
+
+    public VideoRecord() {
+        ChangeListener<? super Number> calculateCompression = (observable, oldValue, newValue) ->
+                compression.set(MathUtils.divide(targetSize.get(), sourceSize.get()));
+        sourceSize.addListener(calculateCompression);
+        targetSize.addListener(calculateCompression);
+    }
+
+    public static void main(String[] args) {
+        System.out.println(new SimpleDoubleProperty().get());
+    }
 
     public String getPath() {
         return path.get();
@@ -120,6 +133,18 @@ public class VideoRecord {
 
     public void setTargetSize(long targetSize) {
         this.targetSize.set(targetSize);
+    }
+
+    public double getCompression() {
+        return compression.get();
+    }
+
+    public SimpleDoubleProperty compressionProperty() {
+        return compression;
+    }
+
+    public void setCompression(double compression) {
+        this.compression.set(compression);
     }
 
     public double getProgress() {

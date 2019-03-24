@@ -11,12 +11,12 @@ public class FormatUtils {
         return new DecimalFormat("0.0").format(bytes / 1024. / 1024.) + "MB";
     }
 
-    public static String formatTimeSeconds(long seconds) {
-        return formatTimeMillis(seconds * 1000);
+    public static String formatCompressionRatio(double ratio) {
+        return new DecimalFormat("0.00").format(ratio);
     }
 
-    public static String formatTimeNanos(long nanos) {
-        return formatTimeMillis(nanos / 1000_000);
+    public static String formatTimeSeconds(long seconds) {
+        return formatTimeMillis(seconds * 1000);
     }
 
     public static String formatTimeMillis(long millis) {
