@@ -1,9 +1,11 @@
 package self.ed;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.ProgressBarTableCell;
@@ -25,11 +27,13 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static java.util.Arrays.asList;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toCollection;
 import static javafx.collections.FXCollections.observableArrayList;
+import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static self.ed.VideoRecord.PROGRESS_DONE;
-import static self.ed.VideoRecord.PROGRESS_NOT_STARTED;
+import static self.ed.VideoRecord.PROGRESS_ZERO;
 import static self.ed.javafx.CustomFormatCellFactory.alignRight;
 import static self.ed.util.FileUtils.buildTargetDir;
 import static self.ed.util.FileUtils.listFiles;
@@ -40,6 +44,12 @@ public class ConverterUI extends Application {
     private final List<ConvertTask> tasks = new ArrayList<>();
     private final SimpleObjectProperty<File> sourceDir = new SimpleObjectProperty<>();
     private final SimpleObjectProperty<File> targetDir = new SimpleObjectProperty<>();
+    private final Button sourceButton = buildButton("Input...");
+    private final Button targetButton = buildButton("Output...");
+    private final Button startButton = buildButton("Start");
+    private final Button stopButton = buildButton("Stop");
+    private final Button refreshButton = buildButton("Refresh");
+    private final ProgressIndicator progressIndicator = new ProgressIndicator();
     private final Label info = new Label();
 
     public static void main(String[] args) {
@@ -53,14 +63,14 @@ public class ConverterUI extends Application {
         stage.setTitle("Bulk Video Converter");
 
         BorderPane layout = new BorderPane();
-        layout.setTop(buildInputPane(stage));
+        layout.setTop(buildControlPane(stage));
         layout.setCenter(buildRecordTable());
 
         stage.setScene(new Scene(layout, 1000, 500));
         stage.show();
 
         // TODO: revert
-        sourceDir.set(new File("/dummy"));
+        sourceDir.set(new File("/home/pc/Desktop/=test-data=/new/"));
     }
 
     @Override
@@ -70,37 +80,37 @@ public class ConverterUI extends Application {
         stopAll();
     }
 
-    private Pane buildInputPane(Stage stage) {
-        Label sourcePath = new Label();
-        Label targetPath = new Label();
+    private Pane buildControlPane(Stage stage) {
+        Label sourceLabel = new Label();
+        Label targetLabel = new Label();
         sourceDir.addListener((ChangeListener<? super File>) (observable, oldValue, newValue) -> {
-            sourcePath.setText(newValue.getAbsolutePath());
+            sourceLabel.setText(newValue.getAbsolutePath());
             targetDir.set(buildTargetDir(newValue));
         });
         targetDir.addListener((ChangeListener<? super File>) (observable, oldValue, newValue) -> {
-            targetPath.setText(newValue.getAbsolutePath());
+            targetLabel.setText(newValue.getAbsolutePath());
             loadFiles();
         });
 
         DirectoryChooser directoryChooser = new DirectoryChooser();
-
-        Button sourceButton = buildButton("Input...");
         sourceButton.setOnAction(e -> ofNullable(directoryChooser.showDialog(stage)).ifPresent(sourceDir::set));
-
-        Button targetButton = buildButton("Output...");
         targetButton.setOnAction(e -> ofNullable(directoryChooser.showDialog(stage)).ifPresent(targetDir::set));
-
-        Button startButton = new Button("Start");
         startButton.setOnAction(e -> startAll());
-
-        Button stopButton = new Button("Stop");
         stopButton.setOnAction(e -> stopAll());
+        refreshButton.setOnAction(e -> loadFiles());
 
-        return new VBox(5,
-                new HBox(10, sourceButton, sourcePath),
-                new HBox(10, targetButton, targetPath),
-                new HBox(10, startButton, stopButton, info)
+        progressIndicator.setVisible(false);
+
+        BorderPane control = new BorderPane();
+        control.setLeft(
+                new VBox(5,
+                        new HBox(10, sourceButton, sourceLabel),
+                        new HBox(10, targetButton, targetLabel),
+                        new HBox(10, startButton, stopButton, info))
         );
+        control.setRight(new VBox(5, progressIndicator, refreshButton));
+        enable(sourceButton, targetButton, startButton);
+        return control;
     }
 
     private TableView buildRecordTable() {
@@ -144,37 +154,75 @@ public class ConverterUI extends Application {
         return button;
     }
 
-    private void loadFiles() {
-        info("Collecting files...");
+    private synchronized void loadFiles() {
+        info("Collecting...");
+        enable();
         files.clear();
-        listFiles(sourceDir.get()).stream()
-                .map(path -> VideoRecord.newInstance(sourceDir.get(), path, targetDir.get()))
-                .collect(toCollection(() -> files));
-    }
-
-    private void info(String message) {
-        System.out.println(new Date() + ": " + message);
-        info.setText(message);
+        progressIndicator.setVisible(false);
+        new Thread(new Task<Void>() {
+            @Override
+            protected Void call() {
+                List<String> sourceFiles = listFiles(sourceDir.get());
+                for (String path : sourceFiles) {
+                    Platform.runLater(() -> info("Loading... " + (files.size() + 1) + "/" + sourceFiles.size()));
+                    files.add(VideoRecord.newInstance(sourceDir.get(), path, targetDir.get()));
+                }
+                // enabling before updateConvertProgress because the latter may disable start button if everything is converted
+                enable(sourceButton, targetButton, startButton, refreshButton);
+                Platform.runLater(() -> {
+                    info(EMPTY);
+                    updateConvertProgress();
+                    progressIndicator.setVisible(true);
+                });
+                return null;
+            }
+        }).start();
     }
 
     private synchronized void startAll() {
-        info("Processing...");
+        info("Converting...");
+        enable(stopButton);
         ExecutorService executor = Executors.newSingleThreadExecutor();
         files.stream()
                 .filter(file -> file.getProgress() != PROGRESS_DONE)
-                .map(ConvertTask::new)
+                .map(file -> new ConvertTask(file, this::updateConvertProgress))
                 .peek(executor::execute)
                 .collect(toCollection(() -> tasks));
+        updateConvertProgress();
+    }
+
+    private void updateConvertProgress() {
+        long done = files.stream().filter(file -> file.getProgress() == PROGRESS_DONE).count();
+        long total = files.size();
+        progressIndicator.setProgress((double) done / total);
+        if (done == total) {
+            info(EMPTY);
+            enable(sourceButton, targetButton, refreshButton);
+        }
     }
 
     private synchronized void stopAll() {
+        enable();
         info("Stopping...");
         tasks.stream()
                 .filter(task -> !task.isDone())
                 .forEach(task -> {
                     task.cancel();
-                    task.getRecord().setProgress(PROGRESS_NOT_STARTED);
+                    task.getRecord().setProgress(PROGRESS_ZERO);
                 });
         tasks.clear();
+        info(EMPTY);
+        enable(sourceButton, targetButton, startButton, refreshButton);
+    }
+
+    private void enable(Button... buttons) {
+        List<Button> enabled = asList(buttons);
+        asList(sourceButton, targetButton, startButton, stopButton, refreshButton)
+                .forEach(button -> button.setDisable(!enabled.contains(button)));
+    }
+
+    private void info(String message) {
+        System.out.println(new Date() + ": " + message);
+        info.setText(message);
     }
 }

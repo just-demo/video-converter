@@ -12,7 +12,7 @@ import static self.ed.Converter.getFileInfo;
 import static self.ed.util.FileUtils.buildTargetFile;
 
 public class VideoRecord {
-    public static int PROGRESS_NOT_STARTED = 0;
+    public static int PROGRESS_ZERO = 0;
     public static int PROGRESS_DONE = 1;
     private SimpleStringProperty path = new SimpleStringProperty();
     private SimpleLongProperty duration = new SimpleLongProperty();
@@ -22,7 +22,7 @@ public class VideoRecord {
     private SimpleIntegerProperty targetWidth = new SimpleIntegerProperty();
     private SimpleIntegerProperty targetHeight = new SimpleIntegerProperty();
     private SimpleLongProperty targetSize = new SimpleLongProperty();
-    private SimpleDoubleProperty progress = new SimpleDoubleProperty(PROGRESS_NOT_STARTED);
+    private SimpleDoubleProperty progress = new SimpleDoubleProperty(PROGRESS_ZERO);
     private File sourceFile;
     private File targetFile;
 

@@ -3,11 +3,15 @@ package self.ed;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 
+import static self.ed.VideoRecord.PROGRESS_DONE;
+
 public class ConvertTask extends Task<Void> {
     private VideoRecord record;
+    private Runnable onComplete;
 
-    public ConvertTask(VideoRecord record) {
+    public ConvertTask(VideoRecord record, Runnable onComplete) {
         this.record = record;
+        this.onComplete = onComplete;
     }
 
     @Override
@@ -22,6 +26,8 @@ public class ConvertTask extends Task<Void> {
                     Platform.runLater(() -> record.setProgress(this.getProgress()));
                 }
         );
+        record.setProgress(PROGRESS_DONE);
+        Platform.runLater(onComplete);
         return null;
     }
 
