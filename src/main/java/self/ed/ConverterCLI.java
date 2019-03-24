@@ -10,7 +10,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import static self.ed.util.FileUtils.buildOutFile;
+import static self.ed.util.FileUtils.buildTargetFile;
 import static self.ed.util.FormatUtils.formatFileSize;
 import static self.ed.util.FormatUtils.formatTimeSeconds;
 
@@ -26,7 +26,7 @@ public class ConverterCLI {
 
     private static String convert(String inFile) {
         Path outDir = Paths.get(inFile).getParent();
-        String outFile = buildOutFile(outDir.toFile(), inFile).getAbsolutePath();
+        String outFile = buildTargetFile(outDir.toFile(), inFile).getAbsolutePath();
         Converter.convert(inFile, outFile, (current, total) -> {
             long percentage = 100 * current / total;
             System.out.println("[" + percentage + "%]");

@@ -2,8 +2,6 @@ package self.ed.util;
 
 import java.io.File;
 import java.nio.file.Path;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -22,18 +20,17 @@ public class FileUtils {
                 .collect(toList());
     }
 
-    public static File buildOutDir(File inDir) {
-        String time = new SimpleDateFormat("YYYYMMDD-HHmmss").format(new Date());
-        return inDir.toPath().getParent().resolve(inDir.getName() + "_compressed_" + time).toFile();
+    public static File buildTargetDir(File sourceDir) {
+        return sourceDir.toPath().getParent().resolve(sourceDir.getName() + "_compressed").toFile();
     }
 
-    public static File buildOutFile(File outDir, String inPath) {
-        Path outPath = outDir.toPath().resolve(inPath);
-        return outPath.getParent().resolve(buildOutFileName(outPath.getFileName().toString())).toFile();
+    public static File buildTargetFile(File targetDir, String sourcePath) {
+        Path outPath = targetDir.toPath().resolve(sourcePath);
+        return outPath.getParent().resolve(buildTargetFileName(outPath.getFileName().toString())).toFile();
     }
 
-    private static String buildOutFileName(String inFileName) {
-        return getBaseName(inFileName) + "_compressed." + getExtension(inFileName);
+    private static String buildTargetFileName(String sourceFileName) {
+        return getBaseName(sourceFileName) + "_compressed." + getExtension(sourceFileName);
     }
 
     private static Stream<File> streamFiles(File dir) {

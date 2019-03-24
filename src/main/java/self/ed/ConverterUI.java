@@ -2,7 +2,6 @@ package self.ed;
 
 import javafx.application.Application;
 import javafx.collections.ObservableList;
-import javafx.concurrent.Task;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.ProgressBarTableCell;
@@ -18,24 +17,28 @@ import self.ed.javafx.MultiPropertyValueFactory;
 import self.ed.util.FormatUtils;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toCollection;
 import static javafx.collections.FXCollections.observableArrayList;
+import static self.ed.VideoRecord.PROGRESS_DONE;
+import static self.ed.VideoRecord.PROGRESS_NOT_STARTED;
 import static self.ed.javafx.CustomFormatCellFactory.alignRight;
-import static self.ed.util.FileUtils.buildOutDir;
+import static self.ed.util.FileUtils.buildTargetDir;
 import static self.ed.util.FileUtils.listFiles;
+import static self.ed.util.FormatUtils.formatFileSize;
 
 public class ConverterUI extends Application {
 
     private final ObservableList<VideoRecord> files = observableArrayList();
-    private File inDir;
-    private File outDir;
+    private final List<ConvertTask> tasks = new ArrayList<>();
+    private File sourceDir;
+    private File targetDir;
 
     private Label info = new Label();
 
@@ -43,8 +46,9 @@ public class ConverterUI extends Application {
         launch(args);
     }
 
+    @Override
     public void start(Stage stage) {
-        // See https://docs.oracle.com/javase/8/javafx/layout-tutorial/builtin_layouts.htm#JFXLY102
+        // https://docs.oracle.com/javase/8/javafx/layout-tutorial/builtin_layouts.htm#JFXLY102
         // https://docs.oracle.com/javase/8/javafx/interoperability-tutorial/concurrency.htm
         stage.setTitle("Bulk Video Converter");
 
@@ -56,6 +60,13 @@ public class ConverterUI extends Application {
         stage.show();
     }
 
+    @Override
+    public void stop() throws Exception {
+        super.stop();
+        // TODO: why is there still a background process?
+        stopAll();
+    }
+
     private Pane buildInputPane(Stage stage) {
         Label sourcePath = new Label();
         Label targetPath = new Label();
@@ -64,18 +75,18 @@ public class ConverterUI extends Application {
 
         Button sourceButton = buildButton("Input...");
         sourceButton.setOnAction(e -> ofNullable(directoryChooser.showDialog(stage)).ifPresent(file -> {
-            inDir = file;
-            outDir = buildOutDir(inDir);
-            // TODO: try to bind in/out path properties to corresponding files
-            sourcePath.setText(inDir.getAbsolutePath());
-            targetPath.setText(outDir.getAbsolutePath());
+            sourceDir = file;
+            targetDir = buildTargetDir(sourceDir);
+            // TODO: try to bind source/target path properties to corresponding files
+            sourcePath.setText(sourceDir.getAbsolutePath());
+            targetPath.setText(targetDir.getAbsolutePath());
             loadFiles();
         }));
 
         Button targetButton = buildButton("Output...");
         targetButton.setOnAction(e -> ofNullable(directoryChooser.showDialog(stage)).ifPresent(file -> {
-            outDir = file;
-            targetPath.setText(outDir.getAbsolutePath());
+            targetDir = file;
+            targetPath.setText(targetDir.getAbsolutePath());
             loadFiles();
         }));
 
@@ -85,10 +96,10 @@ public class ConverterUI extends Application {
         Button stopButton = new Button("Stop");
         stopButton.setOnAction(e -> stopAll());
 
-        inDir = new File("/dummy");
-        outDir = buildOutDir(inDir);
-        sourcePath.setText(inDir.getAbsolutePath());
-        targetPath.setText(outDir.getAbsolutePath());
+        sourceDir = new File("/dummy");
+        targetDir = buildTargetDir(sourceDir);
+        sourcePath.setText(sourceDir.getAbsolutePath());
+        targetPath.setText(targetDir.getAbsolutePath());
         loadFiles();
 
         return new VBox(5,
@@ -108,23 +119,28 @@ public class ConverterUI extends Application {
         duration.setCellValueFactory(new PropertyValueFactory<>("duration"));
         duration.setCellFactory((CustomFormatCellFactory<VideoRecord, Long>) FormatUtils::formatTimeSeconds);
 
-        TableColumn<VideoRecord, Long> size = new TableColumn<>("Size");
-        size.setMinWidth(100);
-        size.setCellValueFactory(new PropertyValueFactory<>("size"));
-        size.setCellFactory(alignRight((CustomFormatCellFactory<VideoRecord, Long>) FormatUtils::formatFileSize));
+        TableColumn<VideoRecord, List<Long>> sourceResolution = new TableColumn<>("Resolution");
+        sourceResolution.setMinWidth(100);
+        sourceResolution.setCellValueFactory(new MultiPropertyValueFactory<>("sourceWidth", "sourceHeight"));
+        sourceResolution.setCellFactory((CustomFormatCellFactory<VideoRecord, List<Long>>) FormatUtils::formatDimensions);
 
-        TableColumn<VideoRecord, List<Long>> resolution = new TableColumn<>("Resolution");
-        resolution.setMinWidth(100);
-        resolution.setCellValueFactory(new MultiPropertyValueFactory<>("width", "height"));
-        resolution.setCellFactory((CustomFormatCellFactory<VideoRecord, List<Long>>) FormatUtils::formatDimensions);
+        TableColumn<VideoRecord, Long> sourceSize = new TableColumn<>("Size");
+        sourceSize.setMinWidth(100);
+        sourceSize.setCellValueFactory(new PropertyValueFactory<>("sourceSize"));
+        sourceSize.setCellFactory(alignRight((CustomFormatCellFactory<VideoRecord, Long>) FormatUtils::formatFileSize));
 
         TableColumn<VideoRecord, Double> progress = new TableColumn<>("Progress");
         progress.setMinWidth(100);
         progress.setCellValueFactory(new PropertyValueFactory<>("progress"));
         progress.setCellFactory(ProgressBarTableCell.forTableColumn());
 
+        TableColumn<VideoRecord, Long> targetSize = new TableColumn<>("Size");
+        targetSize.setMinWidth(100);
+        targetSize.setCellValueFactory(new PropertyValueFactory<>("targetSize"));
+        targetSize.setCellFactory(alignRight((CustomFormatCellFactory<VideoRecord, Long>) size -> size == 0 ? "" : formatFileSize(size)));
+
         TableView<VideoRecord> table = new TableView<>(files);
-        table.getColumns().addAll(path, duration, size, resolution, progress);
+        table.getColumns().addAll(path, duration, sourceResolution, sourceSize, progress, targetSize);
         return table;
     }
 
@@ -137,8 +153,8 @@ public class ConverterUI extends Application {
     private void loadFiles() {
         info("Collecting files...");
         files.clear();
-        listFiles(inDir).stream()
-                .map(path -> VideoRecord.newInstance(inDir, path, outDir))
+        listFiles(sourceDir).stream()
+                .map(path -> VideoRecord.newInstance(sourceDir, path, targetDir))
                 .collect(toCollection(() -> files));
     }
 
@@ -147,51 +163,24 @@ public class ConverterUI extends Application {
         info.setText(message);
     }
 
-
-    private void startAll() {
+    private synchronized void startAll() {
         info("Processing...");
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        files.stream().map(this::createTask).forEach(executor::execute);
+        files.stream()
+                .filter(file -> file.getProgress() != PROGRESS_DONE)
+                .map(ConvertTask::new)
+                .peek(executor::execute)
+                .collect(toCollection(() -> tasks));
     }
 
-    private void stopAll() {
+    private synchronized void stopAll() {
         info("Stopping...");
-        files.stream().map(VideoRecord::getTask).filter(Objects::nonNull).forEach(task -> task.cancel(false));
-    }
-
-    private Task createTask(VideoRecord record) {
-        Task task = new Task<Void>() {
-            {
-                resetProgress();
-            }
-
-            @Override
-            public Void call() {
-                System.out.println("Converting: " + record.getInFile().getAbsolutePath() + " -> " + record.getOutFile().getAbsolutePath());
-                Converter.convert(
-                        record.getInFile().getAbsolutePath(),
-                        record.getOutFile().getAbsolutePath(),
-                        this::updateProgress
-                );
-//                int max = 50;
-//                for (int i = 1; i <= max; i++) {
-//                    if (isCancelled()) {
-//                        resetProgress();
-//                        System.out.println("Breaking...");
-//                        break;
-//                    }
-//                    randomSleep();
-//                    updateProgress(i, max);
-//                }
-                return null;
-            }
-
-            private void resetProgress() {
-                updateProgress(0, 0);
-            }
-        };
-        record.progressProperty().bind(task.progressProperty());
-        record.setTask(task);
-        return task;
+        tasks.stream()
+                .filter(task -> !task.isDone())
+                .forEach(task -> {
+                    task.cancel();
+                    task.getRecord().setProgress(PROGRESS_NOT_STARTED);
+                });
+        tasks.clear();
     }
 }

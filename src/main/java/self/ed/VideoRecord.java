@@ -4,33 +4,34 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.concurrent.Task;
-import net.bramp.ffmpeg.FFprobe;
-import net.bramp.ffmpeg.probe.FFmpegFormat;
-import net.bramp.ffmpeg.probe.FFmpegProbeResult;
-import net.bramp.ffmpeg.probe.FFmpegStream;
-import org.apache.commons.io.FilenameUtils;
+import javafx.beans.value.ChangeListener;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Path;
 
-import static self.ed.util.FileUtils.buildOutFile;
+import static self.ed.Converter.getFileInfo;
+import static self.ed.util.FileUtils.buildTargetFile;
 
 public class VideoRecord {
+    public static int PROGRESS_NOT_STARTED = 0;
+    public static int PROGRESS_DONE = 1;
     private SimpleStringProperty path = new SimpleStringProperty();
     private SimpleLongProperty duration = new SimpleLongProperty();
-    private SimpleLongProperty size = new SimpleLongProperty();
-    private SimpleIntegerProperty width = new SimpleIntegerProperty();
-    private SimpleIntegerProperty height = new SimpleIntegerProperty();
-    private SimpleDoubleProperty progress = new SimpleDoubleProperty(0);
-    private File inFile;
-    private File outFile;
-    private Task task;
+    private SimpleIntegerProperty sourceWidth = new SimpleIntegerProperty();
+    private SimpleIntegerProperty sourceHeight = new SimpleIntegerProperty();
+    private SimpleLongProperty sourceSize = new SimpleLongProperty();
+    private SimpleIntegerProperty targetWidth = new SimpleIntegerProperty();
+    private SimpleIntegerProperty targetHeight = new SimpleIntegerProperty();
+    private SimpleLongProperty targetSize = new SimpleLongProperty();
+    private SimpleDoubleProperty progress = new SimpleDoubleProperty(PROGRESS_NOT_STARTED);
+    private File sourceFile;
+    private File targetFile;
 
     public String getPath() {
         return path.get();
+    }
+
+    public SimpleStringProperty pathProperty() {
+        return path;
     }
 
     public void setPath(String path) {
@@ -41,32 +42,84 @@ public class VideoRecord {
         return duration.get();
     }
 
+    public SimpleLongProperty durationProperty() {
+        return duration;
+    }
+
     public void setDuration(long duration) {
         this.duration.set(duration);
     }
 
-    public long getSize() {
-        return size.get();
+    public int getSourceWidth() {
+        return sourceWidth.get();
     }
 
-    public void setSize(long size) {
-        this.size.set(size);
+    public SimpleIntegerProperty sourceWidthProperty() {
+        return sourceWidth;
     }
 
-    public int getWidth() {
-        return width.get();
+    public void setSourceWidth(int sourceWidth) {
+        this.sourceWidth.set(sourceWidth);
     }
 
-    public void setWidth(int width) {
-        this.width.set(width);
+    public int getSourceHeight() {
+        return sourceHeight.get();
     }
 
-    public int getHeight() {
-        return height.get();
+    public SimpleIntegerProperty sourceHeightProperty() {
+        return sourceHeight;
     }
 
-    public void setHeight(int height) {
-        this.height.set(height);
+    public void setSourceHeight(int sourceHeight) {
+        this.sourceHeight.set(sourceHeight);
+    }
+
+    public long getSourceSize() {
+        return sourceSize.get();
+    }
+
+    public SimpleLongProperty sourceSizeProperty() {
+        return sourceSize;
+    }
+
+    public void setSourceSize(long sourceSize) {
+        this.sourceSize.set(sourceSize);
+    }
+
+    public int getTargetWidth() {
+        return targetWidth.get();
+    }
+
+    public SimpleIntegerProperty targetWidthProperty() {
+        return targetWidth;
+    }
+
+    public void setTargetWidth(int targetWidth) {
+        this.targetWidth.set(targetWidth);
+    }
+
+    public int getTargetHeight() {
+        return targetHeight.get();
+    }
+
+    public SimpleIntegerProperty targetHeightProperty() {
+        return targetHeight;
+    }
+
+    public void setTargetHeight(int targetHeight) {
+        this.targetHeight.set(targetHeight);
+    }
+
+    public long getTargetSize() {
+        return targetSize.get();
+    }
+
+    public SimpleLongProperty targetSizeProperty() {
+        return targetSize;
+    }
+
+    public void setTargetSize(long targetSize) {
+        this.targetSize.set(targetSize);
     }
 
     public double getProgress() {
@@ -81,50 +134,43 @@ public class VideoRecord {
         this.progress.set(progress);
     }
 
-    public Task getTask() {
-        return task;
+    public File getSourceFile() {
+        return sourceFile;
     }
 
-    public void setTask(Task task) {
-        this.task = task;
+    public void setSourceFile(File sourceFile) {
+        this.sourceFile = sourceFile;
     }
 
-    public File getInFile() {
-        return inFile;
+    public File getTargetFile() {
+        return targetFile;
     }
 
-    public void setInFile(File inFile) {
-        this.inFile = inFile;
+    public void setTargetFile(File targetFile) {
+        this.targetFile = targetFile;
     }
 
-    public File getOutFile() {
-        return outFile;
-    }
+    public static VideoRecord newInstance(File sourceDir, String path, File targetDir) {
+        File sourceFile = sourceDir.toPath().resolve(path).toFile();
+        File targetFile = buildTargetFile(targetDir, path);
+        FileInfo sourceInfo = getFileInfo(sourceFile.getAbsolutePath());
 
-    public void setOutFile(File outFile) {
-        this.outFile = outFile;
-    }
-
-    public static VideoRecord newInstance(File inDir, String path, File outDir) {
-        try {
-            File inFile = inDir.toPath().resolve(path).toFile();
-            File outFile = buildOutFile(outDir, path);
-            FFprobe ffprobe = new FFprobe();
-            FFmpegProbeResult probeResult = ffprobe.probe(inFile.getAbsolutePath());
-            FFmpegFormat format = probeResult.getFormat();
-            FFmpegStream stream = probeResult.getStreams().get(0);
-
-            VideoRecord record = new VideoRecord();
-            record.setPath(path);
-            record.setDuration((long) format.duration);
-            record.setSize(inFile.length());
-            record.setWidth(stream.width);
-            record.setHeight(stream.height);
-            record.setInFile(inFile);
-            record.setOutFile(outFile);
-            return record;
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+        VideoRecord record = new VideoRecord();
+        record.setPath(path);
+        record.setDuration(sourceInfo.getDuration());
+        record.setSourceSize(sourceInfo.getSize());
+        record.setSourceWidth(sourceInfo.getWidth());
+        record.setSourceHeight(sourceInfo.getHeight());
+        record.setSourceFile(sourceFile);
+        record.setTargetFile(targetFile);
+        record.progressProperty().addListener((ChangeListener<? super Number>) (observable, oldValue, newValue) -> {
+            if (newValue.doubleValue() == PROGRESS_DONE) {
+                record.setTargetSize(targetFile.length());
+            }
+        });
+        if (targetFile.exists()) {
+            record.setProgress(1);
         }
+        return record;
     }
 }
