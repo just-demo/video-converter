@@ -4,38 +4,37 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.util.Callback;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static javafx.geometry.Pos.CENTER_RIGHT;
 
-public interface CustomFormatCellFactory<S, T> extends Callback<TableColumn<S, T>, TableCell<S, T>> {
+public class CustomFormatCellFactory<S, T> implements Callback<TableColumn<S, T>, TableCell<S, T>> {
+    private List<Consumer<TableCell<S, T>>> decorators = new ArrayList<>();
+
     @Override
-    default TableCell<S, T> call(TableColumn<S, T> param) {
+    public TableCell<S, T> call(TableColumn<S, T> param) {
         return new TableCell<S, T>() {
             @Override
             protected void updateItem(T item, boolean empty) {
                 super.updateItem(item, empty);
-                setText(empty ? null : format(item));
+                decorators.forEach(decorator -> decorator.accept(this));
             }
         };
     }
 
-    String format(T item);
-
-    static <S, T> Callback<TableColumn<S, T>, TableCell<S, T>> format(Function<T, String> formatter) {
-        return (CustomFormatCellFactory<S, T>) formatter::apply;
+    public static <S, T> CustomFormatCellFactory<S, T> format(Function<T, String> formatter) {
+        return decorate(new CustomFormatCellFactory<>(), cell -> cell.setText(cell.isEmpty() ? null : formatter.apply(cell.getItem())));
     }
 
-    static <S, T> Callback<TableColumn<S, T>, TableCell<S, T>> alignRight(Callback<TableColumn<S, T>, TableCell<S, T>> delegate) {
+    public static <S, T> CustomFormatCellFactory<S, T> alignRight(CustomFormatCellFactory<S, T> delegate) {
         return decorate(delegate, cell -> cell.setAlignment(CENTER_RIGHT));
     }
 
-    static <S, T> Callback<TableColumn<S, T>, TableCell<S, T>> decorate(Callback<TableColumn<S, T>, TableCell<S, T>> delegate, Consumer<TableCell<S, T>> decorator) {
-        return param -> {
-            TableCell<S, T> cell = delegate.call(param);
-            decorator.accept(cell);
-            return cell;
-        };
+    public static <S, T> CustomFormatCellFactory<S, T> decorate(CustomFormatCellFactory<S, T> delegate, Consumer<TableCell<S, T>> decorator) {
+        delegate.decorators.add(decorator);
+        return delegate;
     }
 }

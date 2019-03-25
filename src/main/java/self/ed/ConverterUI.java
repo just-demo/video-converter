@@ -68,6 +68,7 @@ public class ConverterUI extends Application {
 
         stage.setScene(new Scene(layout, 1000, 500));
         stage.show();
+        //sourceDir.set(new File(""));
     }
 
     @Override
@@ -146,7 +147,6 @@ public class ConverterUI extends Application {
         compression.setCellValueFactory(new PropertyValueFactory<>("compression"));
         compression.setCellFactory(alignRight(decorate(
                 format(ratio -> ratio == 0 ? "" : formatCompressionRatio(ratio)),
-                // TODO: fix setting color
                 cell -> ofNullable(cell.getItem()).ifPresent(ratio -> cell.setTextFill(ratio < 1 ? GREEN : RED))))
         );
 
@@ -213,6 +213,7 @@ public class ConverterUI extends Application {
     }
 
     private synchronized void stopAll() {
+        // TODO: either wait for pending task or terminate ffmpeg and delete target file in progress
         enable();
         info("Stopping...");
         tasks.stream()
