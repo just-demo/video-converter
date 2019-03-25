@@ -30,6 +30,7 @@ import static java.util.Arrays.asList;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toCollection;
 import static javafx.collections.FXCollections.observableArrayList;
+import static javafx.collections.FXCollections.synchronizedObservableList;
 import static javafx.scene.paint.Color.GREEN;
 import static javafx.scene.paint.Color.RED;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
@@ -41,7 +42,8 @@ import static self.ed.util.FormatUtils.formatCompressionRatio;
 import static self.ed.util.FormatUtils.formatFileSize;
 
 public class ConverterUI extends Application {
-    private final ObservableList<VideoRecord> files = observableArrayList();
+    // TODO: figure out why the synchronization does not help and records are sometimes lost in UI
+    private final ObservableList<VideoRecord> files = synchronizedObservableList(observableArrayList());
     private final List<Task> tasks = new ArrayList<>();
     private final SimpleObjectProperty<File> sourceDir = new SimpleObjectProperty<>();
     private final SimpleObjectProperty<File> targetDir = new SimpleObjectProperty<>();
@@ -65,7 +67,7 @@ public class ConverterUI extends Application {
         layout.setTop(buildControlPane(stage));
         layout.setCenter(buildRecordTable());
 
-        stage.setScene(new Scene(layout, 1000, 500));
+        stage.setScene(new Scene(layout, 1100, 500));
         stage.show();
         //sourceDir.set(new File(""));
     }
