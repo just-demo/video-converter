@@ -4,10 +4,12 @@ import javafx.application.Platform;
 import javafx.concurrent.Task;
 
 import static self.ed.VideoRecord.PROGRESS_DONE;
+import static self.ed.VideoRecord.PROGRESS_ZERO;
 
 public class ConverterTask extends Task<Void> {
     private VideoRecord record;
     private Runnable onComplete;
+    private ConverterProcess converter;
 
     public ConverterTask(VideoRecord record, Runnable onComplete) {
         this.record = record;
@@ -17,7 +19,7 @@ public class ConverterTask extends Task<Void> {
     @Override
     public Void call() {
         System.out.println("Converting: " + record.getSourceFile() + " -> " + record.getTargetFile());
-        Converter.convert(
+        converter = new ConverterProcess(
                 record.getSourceFile().getAbsolutePath(),
                 record.getTargetFile().getAbsolutePath(),
                 (done, total) -> {
@@ -26,12 +28,24 @@ public class ConverterTask extends Task<Void> {
                     Platform.runLater(() -> record.setProgress(this.getProgress()));
                 }
         );
+        converter.start();
         record.setProgress(PROGRESS_DONE);
         Platform.runLater(onComplete);
         return null;
     }
 
-    public VideoRecord getRecord() {
-        return record;
+    @Override
+    public boolean cancel(boolean mayInterruptIfRunning) {
+        if (converter != null) {
+            try {
+                converter.stop();
+            } catch (Exception e) {
+                e.printStackTrace();
+                record.setError(e.getMessage());
+            }
+        }
+        boolean result = super.cancel(mayInterruptIfRunning);
+        record.setProgress(PROGRESS_ZERO);
+        return result;
     }
 }

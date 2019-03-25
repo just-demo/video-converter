@@ -1,12 +1,12 @@
 package self.ed;
 
-public class FileInfo {
+public class VideoInfo {
     private long duration;
     private int width;
     private int height;
     private long size;
 
-    public FileInfo(long duration, int width, int height, long size) {
+    public VideoInfo(long duration, int width, int height, long size) {
         this.duration = duration;
         this.width = width;
         this.height = height;

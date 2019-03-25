@@ -34,7 +34,6 @@ import static javafx.scene.paint.Color.GREEN;
 import static javafx.scene.paint.Color.RED;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static self.ed.VideoRecord.PROGRESS_DONE;
-import static self.ed.VideoRecord.PROGRESS_ZERO;
 import static self.ed.javafx.CustomFormatCellFactory.*;
 import static self.ed.util.FileUtils.buildTargetDir;
 import static self.ed.util.FileUtils.listFiles;
@@ -43,7 +42,7 @@ import static self.ed.util.FormatUtils.formatFileSize;
 
 public class ConverterUI extends Application {
     private final ObservableList<VideoRecord> files = observableArrayList();
-    private final List<ConverterTask> tasks = new ArrayList<>();
+    private final List<Task> tasks = new ArrayList<>();
     private final SimpleObjectProperty<File> sourceDir = new SimpleObjectProperty<>();
     private final SimpleObjectProperty<File> targetDir = new SimpleObjectProperty<>();
     private final Button sourceButton = buildButton("Input...");
@@ -147,11 +146,16 @@ public class ConverterUI extends Application {
         compression.setCellValueFactory(new PropertyValueFactory<>("compression"));
         compression.setCellFactory(alignRight(decorate(
                 format(ratio -> ratio == 0 ? "" : formatCompressionRatio(ratio)),
-                cell -> ofNullable(cell.getItem()).ifPresent(ratio -> cell.setTextFill(ratio < 1 ? GREEN : RED))))
-        );
+                cell -> ofNullable(cell.getItem()).ifPresent(ratio -> cell.setTextFill(ratio < 1 ? GREEN : RED)))
+        ));
+
+        TableColumn<VideoRecord, String> error = new TableColumn<>("Error");
+        error.setMinWidth(100);
+        error.setCellValueFactory(new PropertyValueFactory<>("error"));
+        error.setCellFactory(decorate(identity(), cell -> cell.setTextFill(RED)));
 
         TableView<VideoRecord> table = new TableView<>(files);
-        table.getColumns().addAll(path, duration, sourceResolution, sourceSize, progress, targetSize, compression);
+        table.getColumns().addAll(path, duration, sourceResolution, sourceSize, progress, targetSize, compression, error);
         return table;
     }
 
@@ -171,6 +175,7 @@ public class ConverterUI extends Application {
             protected Void call() {
                 List<String> sourceFiles = listFiles(sourceDir.get());
                 for (String path : sourceFiles) {
+                    // TODO: Platform.runLater is not reliable because it may be run with a delay, e.g. after files.add has been called thereby showing a higher number than expected
                     Platform.runLater(() -> info("Loading... " + (files.size() + 1) + "/" + sourceFiles.size()));
                     files.add(VideoRecord.newInstance(sourceDir.get(), path, targetDir.get()));
                 }
@@ -213,15 +218,11 @@ public class ConverterUI extends Application {
     }
 
     private synchronized void stopAll() {
-        // TODO: either wait for pending task or terminate ffmpeg and delete target file in progress
         enable();
         info("Stopping...");
         tasks.stream()
                 .filter(task -> !task.isDone())
-                .forEach(task -> {
-                    task.cancel();
-                    task.getRecord().setProgress(PROGRESS_ZERO);
-                });
+                .forEach(Task::cancel);
         tasks.clear();
         info(EMPTY);
         enable(sourceButton, targetButton, startButton, refreshButton);
