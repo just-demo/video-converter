@@ -6,6 +6,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
+import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.ProgressBarTableCell;
@@ -105,13 +106,14 @@ public class ConverterUI extends Application {
         progressIndicator.setVisible(false);
 
         BorderPane control = new BorderPane();
+        control.setPadding(new Insets(5));
         control.setLeft(
                 new VBox(5,
-                        new HBox(10, sourceButton, sourceLabel),
-                        new HBox(10, targetButton, targetLabel),
-                        new HBox(10, startButton, stopButton, info))
+                        new HBox(5, sourceButton, sourceLabel),
+                        new HBox(5, targetButton, targetLabel),
+                        new HBox(5, startButton, stopButton, info))
         );
-        control.setRight(new VBox(5, progressIndicator, refreshButton));
+        control.setRight(new BorderPane(progressIndicator, null, null, refreshButton, null));
         enable(sourceButton);
         return control;
     }
