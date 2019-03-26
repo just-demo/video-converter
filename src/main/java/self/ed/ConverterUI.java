@@ -28,9 +28,10 @@ import java.util.concurrent.Executors;
 
 import static java.util.Arrays.asList;
 import static java.util.Optional.ofNullable;
+import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.stream.Collectors.toCollection;
 import static javafx.collections.FXCollections.observableArrayList;
-import static javafx.collections.FXCollections.synchronizedObservableList;
 import static javafx.scene.paint.Color.GREEN;
 import static javafx.scene.paint.Color.RED;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
@@ -42,9 +43,7 @@ import static self.ed.util.FormatUtils.formatCompressionRatio;
 import static self.ed.util.FormatUtils.formatFileSize;
 
 public class ConverterUI extends Application {
-    // TODO: figure out why the synchronization does not help and records are sometimes lost in UI
-    // TODO: try TableView.refresh to fix the synchronization issue
-    private final ObservableList<VideoRecord> files = synchronizedObservableList(observableArrayList());
+    private final ObservableList<VideoRecord> files = observableArrayList();
     private final List<Task> tasks = new ArrayList<>();
     private final SimpleObjectProperty<File> sourceDir = new SimpleObjectProperty<>();
     private final SimpleObjectProperty<File> targetDir = new SimpleObjectProperty<>();
@@ -55,6 +54,7 @@ public class ConverterUI extends Application {
     private final Button refreshButton = buildButton("Refresh");
     private final ProgressIndicator progressIndicator = new ProgressIndicator();
     private final Label info = new Label();
+    private final TableView<VideoRecord> table = new TableView<>(files);
     private volatile boolean loadStopped;
 
     public static void main(String[] args) {
@@ -158,7 +158,6 @@ public class ConverterUI extends Application {
         error.setCellValueFactory(new PropertyValueFactory<>("error"));
         error.setCellFactory(decorate(identity(), cell -> cell.setTextFill(RED)));
 
-        TableView<VideoRecord> table = new TableView<>(files);
         table.getColumns().addAll(path, duration, sourceResolution, sourceSize, progress, targetSize, compression, error);
         return table;
     }
@@ -194,6 +193,8 @@ public class ConverterUI extends Application {
                     updateConvertProgress();
                     progressIndicator.setVisible(true);
                 });
+                // Refreshing the table because sometimes some records are lost in UI until a user interaction happens
+                newSingleThreadScheduledExecutor().schedule(table::refresh, 1, SECONDS);
                 return null;
             }
         }).start();
