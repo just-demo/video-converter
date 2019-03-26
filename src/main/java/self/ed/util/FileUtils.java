@@ -2,10 +2,12 @@ package self.ed.util;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.stream;
+import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 import static org.apache.commons.io.FilenameUtils.getBaseName;
 import static org.apache.commons.io.FilenameUtils.getExtension;
@@ -21,8 +23,15 @@ public class FileUtils {
                 .collect(toList());
     }
 
+    public static File closestDirectory(File file) {
+        return file == null || (file.exists() && file.isDirectory()) ? file : closestDirectory(file.getParentFile());
+    }
+
     public static File buildTargetDir(File sourceDir) {
-        return sourceDir.toPath().getParent().resolve(sourceDir.getName() + "_compressed").toFile();
+        return ofNullable(sourceDir.toPath().getParent())
+                .orElseGet(() -> Paths.get("/"))
+                .resolve(sourceDir.getName() + "_compressed")
+                .toFile();
     }
 
     public static File buildTargetFile(File targetDir, String sourcePath) {

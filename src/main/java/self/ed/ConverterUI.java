@@ -17,6 +17,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 import self.ed.javafx.MultiPropertyValueFactory;
+import self.ed.util.FileUtils;
 import self.ed.util.FormatUtils;
 
 import java.io.File;
@@ -35,14 +36,15 @@ import static javafx.collections.FXCollections.observableArrayList;
 import static javafx.scene.paint.Color.GREEN;
 import static javafx.scene.paint.Color.RED;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.apache.commons.lang3.SystemUtils.getUserHome;
 import static self.ed.VideoRecord.PROGRESS_DONE;
 import static self.ed.javafx.CustomFormatCellFactory.*;
-import static self.ed.util.FileUtils.buildTargetDir;
-import static self.ed.util.FileUtils.listFiles;
+import static self.ed.util.FileUtils.*;
 import static self.ed.util.FormatUtils.formatCompressionRatio;
 import static self.ed.util.FormatUtils.formatFileSize;
 
 public class ConverterUI extends Application {
+    private static final File USER_HOME = closestDirectory(getUserHome());
     private final ObservableList<VideoRecord> files = observableArrayList();
     private final List<Task> tasks = new ArrayList<>();
     private final SimpleObjectProperty<File> sourceDir = new SimpleObjectProperty<>();
@@ -94,9 +96,8 @@ public class ConverterUI extends Application {
             loadFiles();
         });
 
-        DirectoryChooser directoryChooser = new DirectoryChooser();
-        sourceButton.setOnAction(e -> ofNullable(directoryChooser.showDialog(stage)).ifPresent(sourceDir::set));
-        targetButton.setOnAction(e -> ofNullable(directoryChooser.showDialog(stage)).ifPresent(targetDir::set));
+        sourceButton.setOnAction(e -> selectDirectory(stage, sourceDir));
+        targetButton.setOnAction(e -> selectDirectory(stage, targetDir));
         startButton.setOnAction(e -> startAll());
         stopButton.setOnAction(e -> stopAll());
         refreshButton.setOnAction(e -> loadFiles());
@@ -113,6 +114,16 @@ public class ConverterUI extends Application {
         control.setRight(new VBox(5, progressIndicator, refreshButton));
         enable(sourceButton);
         return control;
+    }
+
+    private void selectDirectory(Stage stage, SimpleObjectProperty<File> destination) {
+        DirectoryChooser directoryChooser = new DirectoryChooser();
+        File initialDirectory = ofNullable(destination.get())
+                .map(File::getParentFile)
+                .map(FileUtils::closestDirectory)
+                .orElse(USER_HOME);
+        ofNullable(initialDirectory).ifPresent(directoryChooser::setInitialDirectory);
+        ofNullable(directoryChooser.showDialog(stage)).ifPresent(destination::set);
     }
 
     private TableView buildRecordTable() {
