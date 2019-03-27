@@ -58,7 +58,7 @@ public class ConverterUI extends Application {
     private final ProgressIndicator progressIndicator = new ProgressIndicator();
     private final Label info = new Label();
     private final TableView<VideoRecord> table = new TableView<>(files);
-    private volatile boolean loadStopped;
+    private Task loaderTask;
 
     public static void main(String[] args) {
         launch(args);
@@ -182,18 +182,17 @@ public class ConverterUI extends Application {
     }
 
     private synchronized void loadFiles() {
-        loadStopped = false;
         info("Collecting...");
         enable(stopButton);
         files.clear();
         progressIndicator.setVisible(false);
-        new Thread(new Task<Void>() {
+        loaderTask = new Task<Void>() {
             @Override
             protected Void call() {
                 List<String> sourceFiles = listFiles(sourceDir.get());
                 for (String path : sourceFiles) {
-                    if (loadStopped) {
-                        return null;
+                    if (isCancelled()) {
+                        return finish();
                     }
                     String message = "Loading... " + (files.size() + 1) + "/" + sourceFiles.size();
                     Platform.runLater(() -> info(message));
@@ -206,11 +205,17 @@ public class ConverterUI extends Application {
                     updateConvertProgress();
                     progressIndicator.setVisible(true);
                 });
+                return finish();
+            }
+
+            private Void finish() {
                 // Refreshing the table because sometimes some records are lost in UI until a user interaction happens
                 newSingleThreadScheduledExecutor().schedule(table::refresh, 1, SECONDS);
+                loaderTask = null;
                 return null;
             }
-        }).start();
+        };
+        new Thread(loaderTask).start();
     }
 
     private synchronized void startAll() {
@@ -244,14 +249,20 @@ public class ConverterUI extends Application {
     private synchronized void stopAll() {
         enable();
         info("Stopping...");
-        loadStopped = true;
+        ofNullable(loaderTask)
+                .filter(this::isNotDone)
+                .ifPresent(Task::cancel);
         tasks.stream()
-                .filter(task -> !task.isDone())
+                .filter(this::isNotDone)
                 .forEach(Task::cancel);
         tasks.clear();
         info(EMPTY);
         enable(sourceButton, targetButton, startButton, refreshButton);
         info("Stopped");
+    }
+
+    private boolean isNotDone(Task task) {
+        return !task.isDone();
     }
 
     private void enable(Button... buttons) {
